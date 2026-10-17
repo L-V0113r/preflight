@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+# Downloaded threat feeds change daily and have their own licences: don't commit them.
+backend/threat_data/feeds/*
+!backend/threat_data/feeds/.gitkeep
+# Your own collected pages may contain other people's content.
+dataset/
+backend/reports/real_evaluation.json
+.DS_Store
+extension/token.json

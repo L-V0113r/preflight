@@ -1,0 +1,1 @@
+# Exact URLs you want blocked, one per line (scheme and fragment are ignored).

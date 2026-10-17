@@ -1,0 +1,14 @@
+<!-- PreFlight SYNTHETIC sample page. Inert: for testing and demos only. Attacker domains use the reserved .invalid ending and never resolve; commands only print a test message. -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Security Alert</title>
+<script>
+// Inert: lockBrowser() is defined but never called, so the demo won't trap you.
+function lockBrowser() {
+  document.documentElement.requestFullscreen();
+  setInterval(function () { alert('Your computer is infected! Call +1-800-555-0199'); }, 800);
+  window.onbeforeunload = function () { return 'Do not close'; };
+}
+</script></head><body>
+<h1>Windows Defender Alert</h1>
+<p>Your PC has been blocked. Viruses detected: 5. Error code #DW6VB36.</p>
+<p>Call Microsoft Support toll-free +1-800-555-0199. Do not close this window.</p>
+</body></html>

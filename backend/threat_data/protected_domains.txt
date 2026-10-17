@@ -1,0 +1,36 @@
+# Brands PreFlight protects against look-alike domains and fake login pages.
+# One registrable domain per line. Add the banks, shops and services YOU use:
+# the shorter and more personal this list, the fewer false alarms.
+#
+# --- UK banks and payments ---
+barclays.co.uk
+hsbc.co.uk
+lloydsbank.com
+natwest.com
+santander.co.uk
+nationwide.co.uk
+monzo.com
+revolut.com
+starlingbank.com
+paypal.com
+# --- Big platforms ---
+google.com
+microsoft.com
+outlook.com
+apple.com
+icloud.com
+amazon.co.uk
+amazon.com
+facebook.com
+instagram.com
+netflix.com
+linkedin.com
+# --- Government and delivery (common scam themes) ---
+gov.uk
+royalmail.com
+evri.com
+dpd.co.uk
+#
+# --- DEMO ENTRY (fictional, uses the reserved .example ending) ---
+# Used by the sample pages and tests. Safe to delete for real use.
+northbridge-bank.example

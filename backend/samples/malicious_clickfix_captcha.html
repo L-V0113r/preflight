@@ -1,0 +1,17 @@
+<!-- PreFlight SYNTHETIC sample page. Inert: for testing and demos only. Attacker domains use the reserved .invalid ending and never resolve; commands only print a test message. -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Just a moment...</title>
+<script>
+function verify() {
+  // Puts an (inert) command on the clipboard, like real 'ClickFix' pages.
+  navigator.clipboard.writeText("powershell -w hidden -c \"Write-Output 'PREFLIGHT SYNTHETIC SAMPLE - NOT A REAL PAYLOAD'\"");
+  document.getElementById('steps').style.display = 'block';
+}
+</script></head><body>
+<div style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;background:#fff">
+  <h2>Verify you are human</h2>
+  <button onclick="verify()">I'm not a robot</button>
+  <div id="steps" style="display:none">
+    <p>Verification steps:</p>
+    <ol><li>Press Windows + R</li><li>Press Ctrl + V</li><li>Press Enter</li></ol>
+  </div>
+</div></body></html>

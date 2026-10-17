@@ -1,0 +1,5 @@
+# Domains you personally want blocked, one per line.
+# Downloaded feeds go in threat_data/feeds/ (see update_threat_feeds.py).
+#
+# DEMO ENTRY (fictional, reserved .invalid ending, never resolves):
+known-bad-demo.invalid

@@ -1,0 +1,19 @@
+{
+  "algorithm": "gradient_boosting (calibrated)",
+  "trained_at": "2026-10-17T15:03:57+00:00",
+  "training_data": "6600 labelled synthetic pages (seed 7)",
+  "n_samples": 6600,
+  "n_malicious": 2600,
+  "cv_average_precision": {
+    "logistic_regression": [
+      0.9951457143778896,
+      0.0007184009704708955
+    ],
+    "gradient_boosting": [
+      0.996678716621135,
+      0.0008154226046910687
+    ]
+  },
+  "seed": 7,
+  "sklearn_version": "1.9.1"
+}

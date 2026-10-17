@@ -1,0 +1,60 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1d2433;
+  --muted: #5b6475;
+  --line: #d7dbe3;
+  --accent: #1d2433;
+  --ok: #15803d;
+  --bad: #c4320a;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11141b;
+    --card: #181c25;
+    --text: #e6e9ef;
+    --muted: #a6adbb;
+    --line: #2f3646;
+    --accent: #e6e9ef;
+    --ok: #4ade80;
+    --bad: #fb7d5b;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main {
+  max-width: 620px;
+  margin: 40px auto;
+  padding: 24px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+@media (max-width: 660px) { main { margin: 0; border-radius: 0; padding: 16px; } }
+h1 { margin: 0 0 4px; font-size: 22px; }
+.lead { color: var(--muted); margin-top: 0; }
+label { display: block; margin: 18px 0 0; font-weight: 600; }
+label small { display: block; font-weight: 400; color: var(--muted); margin-top: 4px; }
+input[type="password"], input[type="url"], input[type="number"] {
+  display: block; width: 100%; margin-top: 6px; padding: 9px 10px; font: inherit;
+  border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit;
+}
+fieldset { border: 1px solid var(--line); border-radius: 10px; margin: 18px 0 0; padding: 8px 14px 12px; }
+legend { font-weight: 600; padding: 0 6px; }
+label.choice { font-weight: 400; margin: 8px 0 0; }
+.actions { display: flex; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+button {
+  font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 9px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--text);
+}
+button.primary { background: var(--accent); color: var(--card); border-color: var(--accent); }
+code { font-size: 13px; }
+#status { min-height: 1.5em; margin-bottom: 0; }
+#status.ok { color: var(--ok); }
+#status.bad { color: var(--bad); }

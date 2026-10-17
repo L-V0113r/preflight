@@ -1,0 +1,16 @@
+<!-- PreFlight SYNTHETIC sample page. Inert: for testing and demos only. Attacker domains use the reserved .invalid ending and never resolve; commands only print a test message. -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout | Maple &amp; Thistle</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head><body>
+<nav><a href="/">Shop</a> <a href="/basket">Basket</a> <a href="/help">Help</a></nav>
+<h1>Checkout</h1><p>Wool scarf, forest green - &pound;34.00</p>
+<form action="/checkout/pay" method="post">
+  <input name="name" autocomplete="cc-name" placeholder="Name on card">
+  <input name="cardnumber" autocomplete="cc-number" placeholder="Card number">
+  <input name="exp" autocomplete="cc-exp" placeholder="MM/YY">
+  <input name="cvc" autocomplete="cc-csc" placeholder="CVC">
+  <button>Pay &pound;34.00</button>
+</form>
+<script>document.querySelector('form').addEventListener('submit',function(){document.querySelector('button').disabled=true});</script>
+<footer><a href="/terms">Terms</a> <a href="/returns">Returns</a></footer>
+</body></html>

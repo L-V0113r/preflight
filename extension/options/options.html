@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PreFlight settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>PreFlight settings</h1>
+    <p class="lead">PreFlight checks links with a scanner running on <strong>this computer</strong>.
+      Links are never sent anywhere else.</p>
+
+    <form id="settings">
+      <label>Scanner token
+        <input id="token" type="password" autocomplete="off" spellcheck="false"
+               placeholder="Paste the token printed by run_server.py">
+        <small>Run <code>python run_server.py --show-token</code> in the backend folder to see it.</small>
+      </label>
+
+      <label>Scanner address
+        <input id="serverUrl" type="url" required>
+      </label>
+
+      <fieldset>
+        <legend>How thorough</legend>
+        <label class="choice"><input type="radio" name="mode" value="full">
+          Full check: download and analyse the page (recommended)</label>
+        <label class="choice"><input type="radio" name="mode" value="url_only">
+          Link only: never download the page (faster, more private, less accurate)</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>If the scanner isn't running</legend>
+        <label class="choice"><input type="radio" name="failMode" value="ask"> Ask me each time</label>
+        <label class="choice"><input type="radio" name="failMode" value="block"> Block the link</label>
+        <label class="choice"><input type="radio" name="failMode" value="open"> Open it without checking</label>
+      </fieldset>
+
+      <label>Maximum wait (seconds)
+        <input id="timeoutSeconds" type="number" min="3" max="60" step="1">
+      </label>
+
+      <div class="actions">
+        <button type="submit" class="primary">Save</button>
+        <button type="button" id="test">Test connection</button>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Runtime and training. Everything else is the Python standard library.
+# Versions used during development (17 Oct 2026): numpy 2.5.3, scikit-learn 1.9.1, joblib (bundled with scikit-learn).
+numpy>=1.26
+scikit-learn>=1.4
+joblib>=1.3

