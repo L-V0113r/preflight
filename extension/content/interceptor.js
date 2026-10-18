@@ -129,9 +129,7 @@
 
     overlay.showResult(result, {
       onBack: goBack,
-      // Report / Ignore both pass details to the background worker, which
-      // calls onSiteReported() / onSiteIgnored() in lib/report_action.js.
-      // Edit those two functions to change what the buttons do.
+      // Report / Ignore are handled in background.js -> lib/report_action.js.
       onReport: () => chrome.runtime.sendMessage({
         type: 'preflight:report-site',
         url: url.href,

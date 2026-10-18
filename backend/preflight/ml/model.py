@@ -50,8 +50,8 @@ class RiskModel:
         self.bundle = bundle
         # Allow a margin around the training range before calling a value unusual.
         span = np.maximum(bundle.high - bundle.low, 1e-9)
-        self._lower = bundle.low - 0.25 * span - 1e-6
-        self._upper = bundle.high + 0.25 * span + 1e-6
+        self._lower = bundle.low - 0.20 * span - 1e-6
+        self._upper = bundle.high + 0.20 * span + 1e-6
 
     # ----------------------------------------------------------- persistence
     @classmethod

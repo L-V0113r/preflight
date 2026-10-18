@@ -3,11 +3,8 @@ The localhost API the browser extension calls.
 
     GET  /health  -> is the scanner up, which model is loaded
     POST /scan    -> {"url": "...", "mode": "full" | "url_only"}  => ScanResult JSON
-    POST /report  -> {"url": "..."}  block this site's domain from now on
-    POST /ignore  -> {"url": "..."}  trust this site's domain from now on
-
-The pop-up's "Report this site" and "Ignore" buttons call /report and /ignore.
-See the "REPORT / IGNORE ENDPOINTS" banner further down for that code.
+    POST /report  -> {"url": "..."}  add the site's domain to blocklist_domains.txt
+    POST /ignore  -> {"url": "..."}  add the site's domain to allowlist_domains.txt
 
 Only the Python standard library is used. Defences, in order:
 
@@ -104,14 +101,8 @@ class PreFlightHandler(BaseHTTPRequestHandler):
                      result.timings_ms.get("total_ms", 0))
         self._send_json(HTTPStatus.OK, result.to_dict())
 
-    # ===================================================================
-    #   REPORT / IGNORE ENDPOINTS  <-- the pop-up buttons land here
-    # ===================================================================
-    # "Report this site" POSTs to /report  -> block=True  -> blocklist_domains.txt
-    # "Ignore"           POSTs to /ignore  -> block=False -> allowlist_domains.txt
-    # Both just add the site's domain to a list the scanner already reads, then
-    # the next visit uses the new verdict. Change _handle_feedback (or the
-    # scanner.remember_site / ThreatIntel.add_domain it calls) to do more.
+    # Handles POST /report (block=True) and POST /ignore (block=False) via
+    # scanner.remember_site.
     def _handle_feedback(self, body: dict, *, block: bool) -> None:
         url = body.get("url")
         if not isinstance(url, str):

@@ -171,9 +171,8 @@
    * @param {object} result  ScanResult from the scanner
    * @param {{onBack: Function, onProceed: Function, onReport?: Function,
    *          onIgnore?: Function}} actions
-   *   onReport ("Report this site") and onIgnore ("Ignore") are optional user-
-   *   feedback hooks, both defined in lib/report_action.js, not here. onIgnore
-   *   runs first and then the page opens via onProceed.
+   *   onReport and onIgnore are optional; each shows its button when given.
+   *   onIgnore runs before the page opens via onProceed.
    */
   function showResult(result, { onBack, onProceed, onReport, onIgnore }) {
     const style = VERDICT_STYLE[result.verdict] || VERDICT_STYLE.unsure;
@@ -207,21 +206,17 @@
     const dangerous = result.verdict === 'danger';
     const back = el('button', { class: 'primary', onclick: onBack }, 'Go back (recommended)');
 
-    // "Ignore": the user says the site is fine. Record that (onIgnore, defined
-    // in lib/report_action.js) and then open the page via onProceed. If no
-    // onIgnore hook is given it just opens the page, like the old button did.
+    // Runs onIgnore, then opens the page via onProceed.
     const ignore = el('button', {
       onclick: async () => {
         try {
           if (onIgnore) await onIgnore();
-        } catch { /* feedback is best-effort; still open the page */ }
+        } catch { /* still open the page if onIgnore fails */ }
         onProceed();
       },
     }, dangerous ? 'Ignore warning, open anyway' : 'Ignore, open the page');
 
-    // "Report this site": the user says the site is bad. This never navigates
-    // and never changes the verdict. It hands the details to onSiteReported()
-    // in lib/report_action.js and shows whatever that returns.
+    // Runs onReport; does not navigate. Shows the returned message on the button.
     const report = onReport ? el('button', { class: 'ghost' }, 'Report this site') : null;
     if (report) {
       report.addEventListener('click', async () => {

@@ -55,7 +55,7 @@ class ScoringSettings:
     # When only the link could be judged, the model has far less evidence, so
     # its opinion counts for less (it can raise CAUTION, never DANGER, alone).
     ml_weight_url_only: float = 0.50
-    ood_feature_limit: int = 6           # features out of range => unfamiliar page
+    ood_feature_limit: int = 5           # features out of range => unfamiliar page
     max_ml_factors: int = 3
 
 

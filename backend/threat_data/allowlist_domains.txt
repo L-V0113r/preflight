@@ -1,0 +1,3 @@
+# Domains YOU trust. PreFlight will not warn about these.
+# The "Ignore" button in the warning pop-up adds a domain here automatically.
+# One registrable domain per line (e.g. example.com). Lines starting with # are ignored.

@@ -61,7 +61,6 @@ class ThreatIntel:
     sources: list[str] = field(default_factory=list)
     data_dir: Path | None = None          # so we can append back to the list files
 
-    # File names the "Report" and "Ignore" buttons append to.
     BLOCKLIST_FILE = "blocklist_domains.txt"
     ALLOWLIST_FILE = "allowlist_domains.txt"
 
@@ -117,7 +116,7 @@ class ThreatIntel:
         return []
 
     def is_trusted(self, urls: list[str]) -> bool:
-        """True if the user marked this site's domain as trusted (via Ignore)."""
+        """True if any URL's registrable domain is in the trust-list."""
         for url in urls:
             host = ut.get_host(url)
             if host and ut.registrable_domain(host) in self.trusted_domains:
@@ -125,19 +124,15 @@ class ThreatIntel:
         return False
 
     def add_domain(self, url: str, *, block: bool) -> str:
-        """
-        Add a site's registrable domain to the block-list (block=True, used by
-        the Report button) or the trust-list (block=False, used by Ignore).
-
-        The change takes effect at once (the in-memory set is updated) and is
-        saved to the list file so it survives a restart. Returns the domain.
-        """
+        """Add the site's registrable domain to the block-list (block=True) or
+        trust-list (block=False). Updates the in-memory set and appends to the
+        list file. Returns the domain."""
         domain = ut.registrable_domain(ut.get_host(url))
         if not domain:
             raise ValueError("could not work out the site's domain")
         target_set = self.bad_domains if block else self.trusted_domains
         other_set = self.trusted_domains if block else self.bad_domains
-        other_set.discard(domain)          # a domain can't be both blocked and trusted
+        other_set.discard(domain)          # block-list and trust-list are mutually exclusive
         target_set.add(domain)
         if self.data_dir is not None:
             filename = self.BLOCKLIST_FILE if block else self.ALLOWLIST_FILE

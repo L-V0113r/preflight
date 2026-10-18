@@ -9,7 +9,6 @@
 import { getSettings } from './lib/settings.js';
 import { scanUrl, health, ScannerError } from './lib/api_client.js';
 import { getCachedResult, cacheResult, isSiteAllowed, allowSite } from './lib/session_state.js';
-// What the "Report this site" button actually does lives in this one file.
 import { onSiteReported, onSiteIgnored } from './lib/report_action.js';
 
 const inFlight = new Map(); // url -> Promise, so double-clicks share one scan
@@ -59,11 +58,7 @@ const handlers = {
     }
   },
 
-  /**
-   * The user pressed "Report this site" in the pop-up. This handler only
-   * gathers the details and hands them to onSiteReported() in
-   * lib/report_action.js - edit that function, not this one.
-   */
+  // Calls onSiteReported in lib/report_action.js.
   async 'preflight:report-site'(message) {
     const url = new URL(message.url);
     try {
@@ -80,10 +75,7 @@ const handlers = {
     }
   },
 
-  /**
-   * The user pressed "Ignore". Hands the details to onSiteIgnored() in
-   * lib/report_action.js - edit that function, not this one.
-   */
+  // Calls onSiteIgnored in lib/report_action.js.
   async 'preflight:ignore-site'(message) {
     const url = new URL(message.url);
     try {

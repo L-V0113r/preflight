@@ -119,8 +119,7 @@ class Scanner:
                          out_of_distribution=out_of_distribution,
                          settings=self.config.scoring, mode=mode)
 
-        # A site the user trusted with "Ignore" is never warned about again.
-        # Its findings stay visible for honesty, but the verdict is forced safe.
+        # Domains in the trust-list are forced to a safe verdict; findings stay visible.
         if self.intel.is_trusted(page.redirect_chain or [url]):
             outcome.verdict = Verdict.SAFE
             outcome.notes = ["You marked this site as trusted, so PreFlight won't warn about it."]
@@ -146,13 +145,9 @@ class Scanner:
             model_info=self.provenance(),
         )
 
-    # -------------------------------------------------- user feedback (buttons)
     def remember_site(self, url: str, *, block: bool) -> str:
-        """
-        Act on the pop-up's Report (block=True) or Ignore (block=False) button:
-        add the site's domain to the block-list or trust-list. Clears the cache
-        so the new verdict is used the very next time the site is visited.
-        """
+        """Add the site's domain to the block-list (block=True) or trust-list
+        (block=False), clear the result cache, and return the domain."""
         domain = self.intel.add_domain(url, block=block)
         self.cache.clear()
         return domain
