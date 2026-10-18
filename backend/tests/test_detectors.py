@@ -73,7 +73,7 @@ class ScriptRuleTests(unittest.TestCase):
         self.assertIn("js.decode_and_run", ids_for(html))
 
     def test_cryptominer(self):
-        html = ("<script>var miner=new CoinHive.Anonymous('k');miner.start();"
+        html = ("<script>var miner=new DemoMiner('k');miner.start();"
                 "new Worker('a.js');new Worker('b.js')</script>")
         self.assertIn("js.cryptominer", ids_for(html))
 

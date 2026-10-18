@@ -17,6 +17,16 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as LookupTimeout
+
+# RFC 6761: names under .invalid never exist, so they're answered without a
+# lookup. Windows otherwise spends seconds asking the local network first.
+NEVER_RESOLVES = (".invalid",)
+
+# getaddrinfo has no timeout of its own; lookups run here so a slow DNS
+# server can't hold up a scan. A stuck lookup finishes in the background.
+_LOOKUPS = ThreadPoolExecutor(max_workers=8, thread_name_prefix="dns")
 
 
 class BlockedAddressError(Exception):
@@ -24,9 +34,10 @@ class BlockedAddressError(Exception):
 
 
 class AddressGuard:
-    def __init__(self, allow_private: bool = False) -> None:
+    def __init__(self, allow_private: bool = False, lookup_timeout: float = 5.0) -> None:
         # allow_private is ONLY for automated tests and the local demo site.
         self.allow_private = allow_private
+        self.lookup_timeout = lookup_timeout
 
     @staticmethod
     def is_public(ip_text: str) -> bool:
@@ -45,8 +56,14 @@ class AddressGuard:
         its addresses is private, loopback, link-local or otherwise reserved.
         """
         host = host.strip("[]")
+        if host.lower().rstrip(".").endswith(NEVER_RESOLVES):
+            raise BlockedAddressError(f"could not resolve '{host}' (reserved name that never exists)")
+        lookup = _LOOKUPS.submit(socket.getaddrinfo, host, port, type=socket.SOCK_STREAM)
         try:
-            infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+            infos = lookup.result(timeout=self.lookup_timeout)
+        except LookupTimeout:
+            raise BlockedAddressError(
+                f"could not resolve '{host}' (no answer within {self.lookup_timeout:.0f}s)") from None
         except socket.gaierror as exc:
             raise BlockedAddressError(f"could not resolve '{host}' ({exc.strerror})") from exc
 

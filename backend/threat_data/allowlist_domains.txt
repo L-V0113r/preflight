@@ -4,3 +4,4 @@
 burgerking.co.uk
 pizzahut.co.uk
 bbc.co.uk
+kfc.co.uk
