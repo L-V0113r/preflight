@@ -32,6 +32,14 @@
       </fieldset>
 
       <fieldset>
+        <legend>How cautious</legend>
+        <label class="choice"><input type="radio" name="strictness" value="balanced">
+          Balanced: only interrupt when something looks wrong (recommended)</label>
+        <label class="choice"><input type="radio" name="strictness" value="strict">
+          Strict: also ask about every page PreFlight couldn't read or doesn't recognise</label>
+      </fieldset>
+
+      <fieldset>
         <legend>If the scanner isn't running</legend>
         <label class="choice"><input type="radio" name="failMode" value="ask"> Ask me each time</label>
         <label class="choice"><input type="radio" name="failMode" value="block"> Block the link</label>

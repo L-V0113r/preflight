@@ -18,6 +18,7 @@ async function load() {
   form.serverUrl.value = settings.serverUrl;
   form.timeoutSeconds.value = Math.round(settings.timeoutMs / 1000);
   form.querySelector(`input[name="mode"][value="${settings.mode}"]`).checked = true;
+  form.querySelector(`input[name="strictness"][value="${settings.strictness}"]`).checked = true;
   form.querySelector(`input[name="failMode"][value="${settings.failMode}"]`).checked = true;
 }
 
@@ -26,6 +27,7 @@ async function save() {
     token: form.token.value,
     serverUrl: form.serverUrl.value,
     mode: form.querySelector('input[name="mode"]:checked').value,
+    strictness: form.querySelector('input[name="strictness"]:checked').value,
     failMode: form.querySelector('input[name="failMode"]:checked').value,
     timeoutMs: Number(form.timeoutSeconds.value) * 1000,
   });

@@ -26,7 +26,8 @@ _RESET = "\033[0m"
 
 def print_result(result: ScanResult) -> None:
     colour = _COLOURS.get(result.verdict, "")
-    ml = "n/a" if result.ml_probability is None else f"{result.ml_probability:.2f}"
+    ml = "n/a" if result.ml_probability is None else (
+        f"{result.ml_probability:.2f}, raw {result.ml_probability_raw:.2f}")
     print(f"\n{colour}{result.verdict.value.upper()}{_RESET}  risk {result.risk_score:.2f}  "
           f"(model {ml})  {result.url}")
     if result.redirect_chain and len(result.redirect_chain) > 1:
@@ -52,6 +53,7 @@ def main() -> None:
     parser.add_argument("--as-url", default="https://local-file.invalid/",
                         help="the URL to pretend --file came from")
     parser.add_argument("--mode", choices=("full", "url_only"), default="full")
+    parser.add_argument("--strictness", choices=("balanced", "strict"), default="balanced")
     parser.add_argument("--json", action="store_true", help="print raw JSON")
     parser.add_argument("--save-html", type=Path,
                         help="also save the fetched HTML (+ .url) into this folder")
@@ -68,19 +70,23 @@ def main() -> None:
         html = args.file.read_text(encoding="utf-8", errors="replace")
         page = FetchedPage(requested_url=url, final_url=url, status=200, body=html,
                            content_type="text/html", redirect_chain=[url])
-        result = scanner.analyse(url, page)
+        result = scanner.analyse(url, page, strictness=args.strictness)
     elif args.url and args.save_html:
         # Fetch once, analyse that same copy, and save it for training.
         url = ut.normalise_url(args.url)
         page = scanner.fetcher.fetch(url)
-        result = scanner.analyse(url, page)
-        if page.fetched_ok and page.body:
+        result = scanner.analyse(url, page, strictness=args.strictness)
+        if page.content_usable and page.body:
             args.save_html.mkdir(parents=True, exist_ok=True)
             stem = re.sub(r"[^a-z0-9]+", "_", ut.get_host(args.url))[:60] or "page"
             (args.save_html / f"{stem}.html").write_text(page.body, encoding="utf-8")
             (args.save_html / f"{stem}.url").write_text(page.final_url, encoding="utf-8")
+        else:
+            # An error or bot-check page is not the site, so it would be a mislabelled example.
+            print(f"Not saved: the site did not return its real content "
+                  f"({page.fetch_error or f'HTTP {page.status}'}).")
     elif args.url:
-        result = scanner.scan(args.url, mode=args.mode)
+        result = scanner.scan(args.url, mode=args.mode, strictness=args.strictness)
     else:
         parser.error("give a URL or --file")
         return

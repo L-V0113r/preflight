@@ -32,7 +32,8 @@ class ScanContext:
               mode: str = "full") -> "ScanContext":
         """Parse the page (if there is HTML to parse) and wrap it in a context."""
         base = page.final_url or url
-        html = page.body if (mode == "full" and page.is_html) else ""
+        # Error and bot-check pages are not the site, so they are not parsed.
+        html = page.body if (mode == "full" and page.is_html and page.content_usable) else ""
         return cls(url=url, page=page, doc=parse_html(html, base),
                    protected_domains=protected_domains, mode=mode)
 
@@ -57,7 +58,7 @@ class ScanContext:
     @property
     def content_analysed(self) -> bool:
         """True if we actually have page content to judge (not just the URL)."""
-        return self.mode == "full" and self.page.fetched_ok
+        return self.mode == "full" and self.page.content_usable
 
     # ------------------------------------------------------------- analysis
     @cached_property

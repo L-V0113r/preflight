@@ -97,6 +97,12 @@ class FetchedPage:
         return self.fetch_error is None and self.status is not None
 
     @property
+    def content_usable(self) -> bool:
+        """True if the response is the site's real content (a 2xx answer).
+        Error and bot-protection pages (403, 429, 503...) are not."""
+        return self.fetched_ok and 200 <= self.status < 300
+
+    @property
     def is_html(self) -> bool:
         ctype = self.content_type.lower()
         return (not ctype) or "html" in ctype or "xml" in ctype
@@ -125,8 +131,10 @@ class ScanResult:
     url: str
     verdict: Verdict
     risk_score: float
-    ml_probability: float | None
+    ml_probability: float | None          # adjusted for the expected share of attacks
     findings: list[Finding] = field(default_factory=list)
+    ml_probability_raw: float | None = None   # as calibrated on the training data
+    strictness: str = "balanced"
     ml_factors: list[MLFactor] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     final_url: str | None = None
@@ -148,6 +156,10 @@ class ScanResult:
             ),
             "findings": [f.to_dict() for f in sorted(
                 self.findings, key=lambda f: f.severity, reverse=True)],
+            "ml_probability_raw": (
+                None if self.ml_probability_raw is None else round(self.ml_probability_raw, 3)
+            ),
+            "strictness": self.strictness,
             "ml_factors": [m.to_dict() for m in self.ml_factors],
             "notes": list(self.notes),
             "final_url": self.final_url,

@@ -10,6 +10,9 @@ export const DEFAULT_SETTINGS = Object.freeze({
   token: '',
   // 'full' downloads and analyses the page; 'url_only' judges the link alone.
   mode: 'full',
+  // 'balanced' only interrupts when something points at a problem; 'strict'
+  // also asks about every page it couldn't read or doesn't recognise.
+  strictness: 'balanced',
   // What to do when the scanner can't be reached: 'ask' the user, 'open'
   // anyway, or 'block' the link.
   failMode: 'ask',
@@ -59,6 +62,7 @@ export async function saveSettings(partial) {
   }
   if (typeof partial.token === 'string') clean.token = partial.token.trim();
   if (['full', 'url_only'].includes(partial.mode)) clean.mode = partial.mode;
+  if (['balanced', 'strict'].includes(partial.strictness)) clean.strictness = partial.strictness;
   if (['ask', 'open', 'block'].includes(partial.failMode)) clean.failMode = partial.failMode;
   if (Number.isFinite(partial.timeoutMs)) {
     clean.timeoutMs = Math.min(Math.max(partial.timeoutMs, 3000), 60000);

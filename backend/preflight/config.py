@@ -43,13 +43,43 @@ class FetchSettings:
 
 
 @dataclass(frozen=True)
+class StrictnessProfile:
+    """How readily PreFlight interrupts. Chosen per scan ("balanced"/"strict")."""
+
+    # Expected share of clicked links that are malicious. The model's
+    # probabilities are re-expressed for this rate (RiskModel.adjust_for_base_rate);
+    # None keeps them as calibrated on the training data.
+    base_rate: float | None
+    # If True, an "Unsure" pop-up for an unreadable or unfamiliar page also
+    # needs a rule finding or a suspicious model score; otherwise it loads.
+    unsure_needs_evidence: bool
+    # Model probability at which an unreadable or unfamiliar page counts as
+    # suspicious enough to ask about.
+    suspicious_probability: float
+    # Lower edge of the "undecided" band (upper edge: ScoringSettings.uncertain_high).
+    undecided_from: float
+
+
+STRICTNESS_LEVELS = ("balanced", "strict")
+
+
+@dataclass(frozen=True)
 class ScoringSettings:
     """Thresholds that turn scores into verdicts (see preflight/scoring.py)."""
 
+    # Chosen by comparing interruptions and missed attacks on held-out test
+    # pages; see readme/ai_techniques/05_explainability_and_uncertainty.md.
+    balanced: StrictnessProfile = StrictnessProfile(
+        base_rate=0.10, unsure_needs_evidence=True, suspicious_probability=0.10,
+        undecided_from=0.10)
+    # The behaviour before strictness levels existed.
+    strict: StrictnessProfile = StrictnessProfile(
+        base_rate=None, unsure_needs_evidence=False, suspicious_probability=0.0,
+        undecided_from=0.30)
+
     danger_threshold: float = 0.80
     caution_threshold: float = 0.45
-    # If the model's probability is inside this band it is "on the fence".
-    uncertain_low: float = 0.30
+    # Upper edge of the "undecided" band; the lower edge is per profile.
     uncertain_high: float = 0.60
     ml_weight: float = 0.90              # how far we trust the model alone
     # When only the link could be judged, the model has far less evidence, so
@@ -57,6 +87,9 @@ class ScoringSettings:
     ml_weight_url_only: float = 0.50
     ood_feature_limit: int = 5           # features out of range => unfamiliar page
     max_ml_factors: int = 3
+
+    def profile(self, name: str) -> StrictnessProfile:
+        return self.strict if name == "strict" else self.balanced
 
 
 @dataclass(frozen=True)

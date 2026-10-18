@@ -56,7 +56,10 @@ async function request(settings, path, { method = 'GET', body } = {}) {
 
 /** Ask the scanner to check one URL. Resolves to a ScanResult object. */
 export function scanUrl(settings, url) {
-  return request(settings, '/scan', { method: 'POST', body: { url, mode: settings.mode } });
+  return request(settings, '/scan', {
+    method: 'POST',
+    body: { url, mode: settings.mode, strictness: settings.strictness },
+  });
 }
 
 /** Check the scanner is running and the token is right. */

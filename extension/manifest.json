@@ -3,7 +3,7 @@
   "name": "PreFlight Link Scanner",
   "version": "0.1.0",
   "description": "Checks a link with your local PreFlight scanner before the page opens, and warns you if it looks dangerous.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms"],
   "host_permissions": ["http://127.0.0.1/*"],
   "background": {
     "service_worker": "background.js",
@@ -22,6 +22,6 @@
     "open_in_tab": true
   },
   "action": {
-    "default_title": "PreFlight settings"
+    "default_title": "PreFlight: checking whether the scanner is running…"
   }
 }

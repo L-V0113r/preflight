@@ -36,20 +36,85 @@ class DecideTests(unittest.TestCase):
         out = decide([], 0.02, content_analysed=True, out_of_distribution=False, settings=SETTINGS)
         self.assertEqual(out.verdict, Verdict.SAFE)
 
-    def test_failed_fetch_is_unsure_not_safe_or_danger(self):
+    def test_strict_failed_fetch_is_always_unsure(self):
         for p in (0.01, 0.99):
             out = decide([], p, content_analysed=False, out_of_distribution=False,
-                         settings=SETTINGS, mode="full")
+                         settings=SETTINGS, mode="full", profile=SETTINGS.strict)
             self.assertEqual(out.verdict, Verdict.UNSURE, p)
 
-    def test_failed_fetch_with_concrete_rule_can_still_warn(self):
-        out = decide([finding(Severity.HIGH)], 0.9, content_analysed=False,
-                     out_of_distribution=False, settings=SETTINGS, mode="full")
-        self.assertIn(out.verdict, (Verdict.CAUTION, Verdict.DANGER))
+    def test_balanced_failed_fetch_with_clean_link_opens(self):
+        out = decide([], 0.01, content_analysed=False, out_of_distribution=False,
+                     settings=SETTINGS, mode="full", profile=SETTINGS.balanced)
+        self.assertEqual(out.verdict, Verdict.SAFE)
+        self.assertTrue(any("only the link" in n for n in out.notes))
 
-    def test_unfamiliar_page_is_unsure(self):
-        out = decide([], 0.05, content_analysed=True, out_of_distribution=True, settings=SETTINGS)
+    def test_balanced_failed_fetch_with_suspicious_link_asks(self):
+        out = decide([], 0.5, content_analysed=False, out_of_distribution=False,
+                     settings=SETTINGS, mode="full", profile=SETTINGS.balanced)
         self.assertEqual(out.verdict, Verdict.UNSURE)
+        out = decide([finding(Severity.LOW)], 0.01, content_analysed=False,
+                     out_of_distribution=False, settings=SETTINGS, mode="full",
+                     profile=SETTINGS.balanced)
+        self.assertEqual(out.verdict, Verdict.UNSURE)
+
+    def test_failed_fetch_with_concrete_rule_can_still_warn(self):
+        for profile in (SETTINGS.balanced, SETTINGS.strict):
+            out = decide([finding(Severity.HIGH)], 0.9, content_analysed=False,
+                         out_of_distribution=False, settings=SETTINGS, mode="full",
+                         profile=profile)
+            self.assertIn(out.verdict, (Verdict.CAUTION, Verdict.DANGER))
+
+    def test_strict_unfamiliar_page_is_unsure(self):
+        out = decide([], 0.05, content_analysed=True, out_of_distribution=True,
+                     settings=SETTINGS, profile=SETTINGS.strict)
+        self.assertEqual(out.verdict, Verdict.UNSURE)
+
+    def test_balanced_unfamiliar_page_needs_a_reason(self):
+        out = decide([], 0.05, content_analysed=True, out_of_distribution=True,
+                     settings=SETTINGS, profile=SETTINGS.balanced)
+        self.assertEqual(out.verdict, Verdict.SAFE)
+        out = decide([finding(Severity.LOW)], 0.05, content_analysed=True,
+                     out_of_distribution=True, settings=SETTINGS, profile=SETTINGS.balanced)
+        self.assertEqual(out.verdict, Verdict.UNSURE)
+
+    def test_undecided_model_always_asks(self):
+        for profile in (SETTINGS.balanced, SETTINGS.strict):
+            out = decide([], 0.4, content_analysed=True, out_of_distribution=False,
+                         settings=SETTINGS, profile=profile)
+            self.assertEqual(out.verdict, Verdict.UNSURE)
+
+
+class BaseRateTests(unittest.TestCase):
+    """The prior-shift maths in RiskModel.adjust_for_base_rate."""
+
+    @staticmethod
+    def model_with_rate(malicious, total):
+        from preflight.ml.model import ModelBundle, RiskModel
+        bundle = ModelBundle(estimator=None, feature_names=FEATURE_NAMES,
+                             reference=np.zeros(len(FEATURE_NAMES)),
+                             low=np.zeros(len(FEATURE_NAMES)), high=np.ones(len(FEATURE_NAMES)),
+                             metadata={"n_samples": total, "n_malicious": malicious})
+        return RiskModel(bundle)
+
+    def test_same_rate_changes_nothing(self):
+        model = self.model_with_rate(40, 100)
+        self.assertAlmostEqual(model.adjust_for_base_rate(0.7, 0.40), 0.7, places=6)
+
+    def test_rarer_attacks_lower_the_probability(self):
+        model = self.model_with_rate(40, 100)
+        # odds 1 at a 40% training rate -> odds (0.1/0.9)/(0.4/0.6) = 1/6 at 10%
+        self.assertAlmostEqual(model.adjust_for_base_rate(0.5, 0.10), 1 / 7, places=6)
+        self.assertLess(model.adjust_for_base_rate(0.9, 0.10), 0.9)
+
+    def test_order_is_preserved(self):
+        model = self.model_with_rate(40, 100)
+        ps = [0.1, 0.3, 0.5, 0.8, 0.99]
+        adjusted = [model.adjust_for_base_rate(p, 0.05) for p in ps]
+        self.assertEqual(adjusted, sorted(adjusted))
+
+    def test_unknown_rate_leaves_probability_unchanged(self):
+        model = self.model_with_rate(40, 100)
+        self.assertEqual(model.adjust_for_base_rate(0.7, None), 0.7)
 
 
 class ModelTests(unittest.TestCase):

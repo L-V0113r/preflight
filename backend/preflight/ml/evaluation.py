@@ -92,11 +92,12 @@ def _scanner(config: AppConfig, intel: ThreatIntel, model: RiskModel | None) -> 
     return Scanner(config, model, intel)
 
 
-def _verdicts(scanner: Scanner, samples: list[LabelledPage]) -> tuple[list[Verdict], list[float]]:
+def _verdicts(scanner: Scanner, samples: list[LabelledPage], strictness: str = "balanced"
+              ) -> tuple[list[Verdict], list[float]]:
     verdicts, seconds = [], []
     for sample in samples:
         t0 = time.perf_counter()
-        result = scanner.analyse(sample.page.requested_url, sample.page)
+        result = scanner.analyse(sample.page.requested_url, sample.page, strictness=strictness)
         seconds.append(time.perf_counter() - t0)
         verdicts.append(result.verdict)
     return verdicts, seconds
@@ -128,6 +129,9 @@ def run_evaluation(config: AppConfig, *, seed: int = 7, n_benign: int = 3000,
     rules_verdicts, _ = _verdicts(_scanner(config, intel, None), test.samples)
     ml_prob = model.predict_many(test.X)
     hybrid_verdicts, seconds = _verdicts(_scanner(config, intel, model), test.samples)
+    strict_verdicts, _ = _verdicts(_scanner(config, intel, model), test.samples, "strict")
+    strict_flag = np.array([v in FLAGGED for v in strict_verdicts])
+    strict_safe = np.array([v == Verdict.SAFE for v in strict_verdicts])
 
     hybrid_flag = np.array([v in FLAGGED for v in hybrid_verdicts])
     hybrid_unsure = np.array([v == Verdict.UNSURE for v in hybrid_verdicts])
@@ -136,6 +140,7 @@ def run_evaluation(config: AppConfig, *, seed: int = 7, n_benign: int = 3000,
         "rules_only": BinaryMetrics.from_predictions(y, [v in FLAGGED for v in rules_verdicts]),
         "model_only": BinaryMetrics.from_predictions(y, ml_prob >= 0.5),
         "preflight_hybrid": BinaryMetrics.from_predictions(y, hybrid_flag),
+        "preflight_strict": BinaryMetrics.from_predictions(y, strict_flag),
     }
 
     per_family = {}
@@ -161,6 +166,7 @@ def run_evaluation(config: AppConfig, *, seed: int = 7, n_benign: int = 3000,
             y[readable], np.array([v in FLAGGED for v in rules_verdicts])[readable]),
         "model_only": BinaryMetrics.from_predictions(y[readable], (ml_prob >= 0.5)[readable]),
         "preflight_hybrid": BinaryMetrics.from_predictions(y[readable], hybrid_flag[readable]),
+        "preflight_strict": BinaryMetrics.from_predictions(y[readable], strict_flag[readable]),
     }
     hybrid_safe = np.array([v == Verdict.SAFE for v in hybrid_verdicts])
 
@@ -171,6 +177,8 @@ def run_evaluation(config: AppConfig, *, seed: int = 7, n_benign: int = 3000,
             "opened_silently": round(float(hybrid_safe[mask].mean()), 3),
             "asked_unsure": round(float(hybrid_unsure[mask].mean()), 3),
             "warned": round(float(hybrid_flag[mask].mean()), 3),
+            "strict_opened_silently": round(float(strict_safe[mask].mean()), 3),
+            "strict_interrupted": round(float((~strict_safe[mask]).mean()), 3),
         }
 
     report = {

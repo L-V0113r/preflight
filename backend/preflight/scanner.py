@@ -15,7 +15,7 @@ import logging
 import time
 
 from preflight.cache import TTLCache
-from preflight.config import AppConfig
+from preflight.config import STRICTNESS_LEVELS, AppConfig
 from preflight.context import ScanContext
 from preflight.detectors import ThreatIntel, run_detectors
 from preflight.features import URL_FEATURE_NAMES, extract_feature_dict, to_vector
@@ -57,17 +57,19 @@ class Scanner:
         return cls(config, model, ThreatIntel.load(config.threat_data_dir))
 
     # ------------------------------------------------------------------ live
-    def scan(self, raw_url: str, mode: str = "full") -> ScanResult:
+    def scan(self, raw_url: str, mode: str = "full", strictness: str = "balanced") -> ScanResult:
         started = time.perf_counter()
         if mode not in SCAN_MODES:
             mode = "full"
+        if strictness not in STRICTNESS_LEVELS:
+            strictness = "balanced"
         try:
             url = ut.normalise_url(raw_url)
         except ValueError as exc:
             return ScanResult(url=str(raw_url)[:500], verdict=Verdict.ERROR, risk_score=0.0,
                               ml_probability=None, notes=[str(exc)], mode=mode)
 
-        cache_key = f"{mode}|{url}"
+        cache_key = f"{mode}|{strictness}|{url}"
         cached = self.cache.get(cache_key)
         if cached is not None:
             cached.from_cache = True
@@ -85,7 +87,8 @@ class Scanner:
             page = FetchedPage(requested_url=url, final_url=url)
             context = ScanContext.build(url, page, self.intel.protected_domains, mode)
 
-        result = self.analyse(url, page, mode=mode, context=context, timings=timings)
+        result = self.analyse(url, page, mode=mode, context=context, timings=timings,
+                              strictness=strictness)
         result.timings_ms["total_ms"] = (time.perf_counter() - started) * 1000
         self.cache.put(cache_key, result)
         return result
@@ -93,7 +96,8 @@ class Scanner:
     # --------------------------------------------------------------- offline
     def analyse(self, url: str, page: FetchedPage, *, mode: str = "full",
                 context: ScanContext | None = None,
-                timings: dict[str, float] | None = None) -> ScanResult:
+                timings: dict[str, float] | None = None,
+                strictness: str = "balanced") -> ScanResult:
         t0 = time.perf_counter()
         context = context or ScanContext.build(url, page, self.intel.protected_domains, mode)
         timings = dict(timings or {})
@@ -101,13 +105,18 @@ class Scanner:
         findings, detector_errors = run_detectors(context)
         findings.extend(self.intel.check(page.redirect_chain or [url]))
 
-        ml_probability, ml_factors, out_of_distribution = None, [], False
+        profile = self.config.scoring.profile(strictness)
+        ml_probability, ml_raw, ml_factors, out_of_distribution = None, None, [], False
         if self.model is not None:
             vector = to_vector(extract_feature_dict(context))
-            ml_probability = self.model.predict(vector)
+            ml_raw = self.model.predict(vector)
+            # The model was calibrated on training data with far more attacks
+            # than real browsing; re-express its probability for the profile's
+            # expected share of malicious links.
+            ml_probability = self.model.adjust_for_base_rate(ml_raw, profile.base_rate)
             unusual = self.model.unusual_features(vector)
             out_of_distribution = len(unusual) >= self.config.scoring.ood_feature_limit
-            if ml_probability >= self.config.scoring.uncertain_low:
+            if ml_probability >= profile.undecided_from:
                 # Without page content, content features are absent rather than
                 # "low", so only URL features may be used to explain the score.
                 allowed = None if context.content_analysed else URL_FEATURE_NAMES
@@ -117,7 +126,7 @@ class Scanner:
         outcome = decide(findings, ml_probability,
                          content_analysed=context.content_analysed,
                          out_of_distribution=out_of_distribution,
-                         settings=self.config.scoring, mode=mode)
+                         settings=self.config.scoring, mode=mode, profile=profile)
 
         # Domains in the trust-list are forced to a safe verdict; findings stay visible.
         if self.intel.is_trusted(page.redirect_chain or [url]):
@@ -134,6 +143,8 @@ class Scanner:
             verdict=outcome.verdict,
             risk_score=outcome.risk,
             ml_probability=ml_probability,
+            ml_probability_raw=ml_raw,
+            strictness=strictness,
             findings=findings,
             ml_factors=ml_factors,
             notes=notes,
@@ -168,6 +179,9 @@ class Scanner:
             notes.append("URL-only mode: the page was not downloaded.")
         elif page.fetch_error:
             notes.append(f"Could not load the page: {page.fetch_error}.")
+        elif page.fetched_ok and not page.content_usable:
+            notes.append(f"The site answered with an error (HTTP {page.status}), often a "
+                         "bot-protection check, so its content was not analysed.")
         if page.truncated:
             notes.append("The page was very large; only the first part was checked.")
         age = self.intel.age_days()

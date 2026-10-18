@@ -10,7 +10,8 @@ NICE_NAMES = {
     "keyword_baseline": "Keyword baseline",
     "rules_only": "Rules only",
     "model_only": "Model only",
-    "preflight_hybrid": "**PreFlight (rules + model)**",
+    "preflight_hybrid": "**PreFlight, Balanced (default)**",
+    "preflight_strict": "PreFlight, Strict",
 }
 
 
@@ -73,17 +74,21 @@ def write_report(report: dict, out_dir: Path) -> Path:
         "",
         "## What the user experiences (PreFlight)",
         "",
-        "The number that matters most for protection is how often a malicious page opens",
-        "**silently**. Unsure pages are not opened silently: the user sees why and decides.",
+        "Two numbers matter: how often a malicious page opens **silently**, and how often a",
+        "genuine page is **interrupted** (warned or asked). Unsure pages are not opened",
+        "silently: the user sees why and decides. Balanced is the default; Strict also asks",
+        "about every page it couldn't read or doesn't recognise.",
         "",
-        "| Pages | n | Opened silently | Asked (Unsure) | Warned (Caution/Danger) |",
-        "|---|---|---|---|---|",
+        "| Pages | n | Balanced: opened silently | Balanced: asked (Unsure) | Balanced: warned "
+        "| Strict: opened silently | Strict: interrupted |",
+        "|---|---|---|---|---|---|---|",
     ]
     for key, label in (("malicious", "Malicious, all"), ("malicious_content_readable", "Malicious, content readable"),
                        ("benign", "Benign, all"), ("benign_content_readable", "Benign, content readable")):
         row = ux[key]
         lines.append(f"| {label} | {row['n']} | {_pct(row['opened_silently'])} | "
-                     f"{_pct(row['asked_unsure'])} | {_pct(row['warned'])} |")
+                     f"{_pct(row['asked_unsure'])} | {_pct(row['warned'])} | "
+                     f"{_pct(row['strict_opened_silently'])} | {_pct(row['strict_interrupted'])} |")
     mq, unc = report["model_quality"], report["uncertainty"]
     lines += [
         "",

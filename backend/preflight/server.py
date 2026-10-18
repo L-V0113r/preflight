@@ -2,7 +2,8 @@
 The localhost API the browser extension calls.
 
     GET  /health  -> is the scanner up, which model is loaded
-    POST /scan    -> {"url": "...", "mode": "full" | "url_only"}  => ScanResult JSON
+    POST /scan    -> {"url": "...", "mode": "full" | "url_only",
+                      "strictness": "balanced" | "strict"}  => ScanResult JSON
     POST /report  -> {"url": "..."}  add the site's domain to blocklist_domains.txt
     POST /ignore  -> {"url": "..."}  add the site's domain to allowlist_domains.txt
 
@@ -95,7 +96,10 @@ class PreFlightHandler(BaseHTTPRequestHandler):
             self._send_json(HTTPStatus.BAD_REQUEST, {"error": "'url' must be a string"})
             return
         mode = body.get("mode", "full")
-        result = self.server.scanner.scan(url, mode=mode if isinstance(mode, str) else "full")
+        strictness = body.get("strictness", "balanced")
+        result = self.server.scanner.scan(
+            url, mode=mode if isinstance(mode, str) else "full",
+            strictness=strictness if isinstance(strictness, str) else "balanced")
         if self.server.scanner.config.server.verbose:
             log.info("%s %s (%.0f ms)", result.verdict.value.upper(), ut.get_host(url),
                      result.timings_ms.get("total_ms", 0))

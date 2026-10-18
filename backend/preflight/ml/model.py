@@ -73,6 +73,32 @@ class RiskModel:
     def predict_many(self, matrix: np.ndarray) -> np.ndarray:
         return self.bundle.estimator.predict_proba(matrix)[:, 1]
 
+    @property
+    def training_base_rate(self) -> float | None:
+        """Share of malicious pages in the training data, or None if unknown."""
+        meta = self.bundle.metadata
+        total, malicious = meta.get("n_samples"), meta.get("n_malicious")
+        if total and malicious is not None and 0 < malicious < total:
+            return malicious / total
+        return None
+
+    def adjust_for_base_rate(self, probability: float, base_rate: float | None) -> float:
+        """
+        Re-express a probability calibrated at the training base rate for a
+        different expected share of malicious pages (Bayes prior shift):
+
+            odds_new = odds_model * [r / (1 - r)] / [t / (1 - t)]
+
+        with t the training base rate and r the new one. Returns the input
+        unchanged when either rate is unknown.
+        """
+        train = self.training_base_rate
+        if train is None or base_rate is None or not 0 < base_rate < 1:
+            return probability
+        p = min(max(probability, 1e-9), 1 - 1e-9)
+        odds = (p / (1 - p)) * (base_rate / (1 - base_rate)) / (train / (1 - train))
+        return float(odds / (1 + odds))
+
     def explain(self, vector: np.ndarray, top_k: int = 3, min_effect: float = 0.03,
                 only: frozenset[str] | None = None) -> list[MLFactor]:
         """

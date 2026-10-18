@@ -10,23 +10,32 @@ import { getSettings } from './lib/settings.js';
 import { scanUrl, health, ScannerError } from './lib/api_client.js';
 import { getCachedResult, cacheResult, isSiteAllowed, allowSite } from './lib/session_state.js';
 import { onSiteReported, onSiteIgnored } from './lib/report_action.js';
+import { STATUS_ALARM, refreshStatus, statusFromScan, startStatusChecks } from './lib/status.js';
 
 const inFlight = new Map(); // url -> Promise, so double-clicks share one scan
 
 /** Scan a URL, using the cache and de-duplicating concurrent requests. */
 async function scanWithCache(settings, url) {
-  const cached = getCachedResult(url);
+  const key = `${settings.mode}|${settings.strictness}|${url}`;
+  const cached = getCachedResult(key);
   if (cached) return cached;
-  if (!inFlight.has(url)) {
+  if (!inFlight.has(key)) {
+    // Only real requests update the icon status; cached results say nothing
+    // about whether the scanner is still running.
     const promise = scanUrl(settings, url)
       .then((result) => {
-        cacheResult(url, result);
+        cacheResult(key, result);
+        statusFromScan(null);
         return result;
       })
-      .finally(() => inFlight.delete(url));
-    inFlight.set(url, promise);
+      .catch((error) => {
+        statusFromScan(error);
+        throw error;
+      })
+      .finally(() => inFlight.delete(key));
+    inFlight.set(key, promise);
   }
-  return inFlight.get(url);
+  return inFlight.get(key);
 }
 
 const handlers = {
@@ -111,8 +120,11 @@ const handlers = {
   async 'preflight:health'() {
     const settings = await getSettings();
     try {
-      return { status: 'ok', health: await health(settings) };
+      const info = await health(settings);
+      refreshStatus();
+      return { status: 'ok', health: info };
     } catch (error) {
+      refreshStatus();
       return { status: 'error', message: error.message };
     }
   },
@@ -135,4 +147,14 @@ chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 // First install: open settings so the user can check the connection.
 chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === 'install') chrome.runtime.openOptionsPage();
+  startStatusChecks();
 });
+
+// Icon hover text: checked at browser start-up and every 30 seconds.
+chrome.runtime.onStartup.addListener(startStatusChecks);
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === STATUS_ALARM) refreshStatus();
+});
+
+// The worker is restarted after idling; check straight away each time it wakes.
+refreshStatus();

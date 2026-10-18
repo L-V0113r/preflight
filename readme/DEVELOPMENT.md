@@ -55,6 +55,8 @@ Each of these was found by running the system and reading its output. They are t
 | 9 | Shortcut learning: hyphens, link count, script size and brand mentions separated the synthetic classes too neatly | explanations + recipe-blog false alarm | Generator diversified (see [`ai_techniques/06`](ai_techniques/06_synthetic_data_and_shortcuts.md)). |
 | 10 | "We accept PayPal" footers made honest login pages look like brand impersonation (26% false alarms on login pages, 5.5% overall) | per-family table in the full evaluation | Brand *claims* are read only from the `<title>` and `<h1>`/`<h2>` headings. Overall false alarms fell to under 1%. |
 | 11 | The headline table made PreFlight look worse than the model alone | full evaluation | "Unsure" answers still stop the page, so they aren't misses. Added a "what the user experiences" table (opened silently / asked / warned) and a readable-pages-only table. |
+| 12 | Too many pop-ups on honest sites: 13% of benign test pages stopped the user, almost all "Unsure" | the user-experience table | The model is calibrated on a 40%-malicious training mix, so it overstated real-world risk. Probabilities are now corrected to a 10% base rate (Bayes prior shift), and unreadable or unfamiliar pages are only questioned if something else looks off. Interruptions fell to 2.4%. The old behaviour is kept as the *Strict* setting. |
+| 13 | Bot-protection and error pages judged as if they were the site | reasoning about Cloudflare's "Just a moment…" check, which resembles a fake-CAPTCHA scam | Only 2xx responses are analysed as page content (`FetchedPage.content_usable`). Anything else is treated as "couldn't read the page". |
 
 ## How it was verified
 

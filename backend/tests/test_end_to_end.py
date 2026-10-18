@@ -16,7 +16,7 @@ from tempfile import TemporaryDirectory
 from preflight.config import SAMPLES_DIR, default_config
 from preflight.net import AddressGuard, BlockedAddressError, SafeFetcher
 from preflight.scanner import Scanner
-from preflight.schema import Verdict
+from preflight.schema import FetchedPage, Verdict
 from preflight.server import PreFlightServer
 
 
@@ -70,10 +70,26 @@ class LiveScanTests(unittest.TestCase):
             result = self.scanner.scan(f"{self.base}/{path.name}")
             self.assertIn(result.verdict, (Verdict.CAUTION, Verdict.DANGER), path.name)
 
-    def test_unreachable_site_is_unsure(self):
-        result = self.scanner.scan("http://does-not-exist.invalid/")
+    def test_unreachable_site_is_unsure_when_strict(self):
+        result = self.scanner.scan("http://does-not-exist.invalid/", strictness="strict")
         self.assertEqual(result.verdict, Verdict.UNSURE)
         self.assertTrue(any("could not" in n.lower() for n in result.notes))
+
+    def test_unreachable_site_is_never_flagged_as_dangerous_when_balanced(self):
+        result = self.scanner.scan("http://does-not-exist.invalid/", strictness="balanced")
+        self.assertIn(result.verdict, (Verdict.SAFE, Verdict.UNSURE))
+        self.assertTrue(any("could not" in n.lower() for n in result.notes))
+
+    def test_error_page_is_not_judged_as_the_site(self):
+        # A bot-protection page answering 403 must not be analysed as content.
+        html = ("<title>Just a moment...</title><h1>Verify you are human</h1>"
+                "<script>eval(atob('Y29uc29sZS5sb2coMSk='))</script>")
+        page = FetchedPage(requested_url="https://shop.example/", final_url="https://shop.example/",
+                           status=403, body=html, content_type="text/html",
+                           redirect_chain=["https://shop.example/"])
+        result = self.scanner.analyse("https://shop.example/", page)
+        self.assertFalse(any(f.detector_id == "js.decode_and_run" for f in result.findings))
+        self.assertTrue(any("HTTP 403" in n for n in result.notes))
 
     def test_blocklisted_domain_is_danger_even_offline(self):
         result = self.scanner.scan("http://known-bad-demo.invalid/login")
@@ -133,6 +149,17 @@ class ApiServerTests(unittest.TestCase):
         status, result = self.call("/scan", {"url": "javascript:alert(1)"}, headers)
         self.assertEqual(status, 200)
         self.assertEqual(result["verdict"], "error")
+
+    def test_strictness_reaches_the_scanner(self):
+        headers = {"X-PreFlight-Token": self.TOKEN, "Content-Type": "application/json"}
+        for level in ("balanced", "strict"):
+            status, result = self.call("/scan", {"url": "http://does-not-exist.invalid/",
+                                                 "strictness": level}, headers)
+            self.assertEqual(status, 200)
+            self.assertEqual(result["strictness"], level)
+        status, result = self.call("/scan", {"url": "http://does-not-exist.invalid/",
+                                             "strictness": "nonsense"}, headers)
+        self.assertEqual(result["strictness"], "balanced")
 
 
 if __name__ == "__main__":
