@@ -1,10 +1,10 @@
 # PreFlight — check a page before it opens
 
-PreFlight is a small AI that runs on your own computer next to your browser. When you click a link to another website, PreFlight downloads the page without running any of it, checks it for phishing, scam, malware, and similar risks, and warns you before the page can load.
+## About
+
+PreFlight is a privacy-first browser safety tool built for SotonShip 2026. It runs locally alongside a Chromium browser: when a user clicks a link, a lightweight extension asks a local Python scanner to fetch the destination (without executing JavaScript), run explainable rule-based checks plus a compact ML model, and return a verdict and human-readable explanation. PreFlight targets phishing, scam, skimming, cryptojacking and related client-side threats while keeping all URLs and scans on the user's device.
 
 License: MIT (SPDX: MIT)
-
-It is built for people who value privacy and would rather wait a moment than take a risk. The URLs you visit are never sent to any cloud service. The model, the rules and the threat lists all live on the user’s device.
 
 > One-sentence pitch: We help privacy-conscious people avoid phishing, scam and malware pages by checking every link on their own computer, with an explainable AI, before the page can load.
 
