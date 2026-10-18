@@ -4,8 +4,7 @@
 # This file is part of the PreFlight project and is distributed under the
 # project's MIT license unless a more specific upstream notice applies.
 #
-# 1072 well-known sites, written by hand (not generated from a ranking list).
-# Sites that can't be reached are skipped automatically, so a few failures are normal.
+# Empty by default. Sites that can't be reached are skipped automatically.
 #
 # One web address per line. Lines starting with # are ignored.
 # Add the sites YOU use (your bank, your university, shops you buy from).

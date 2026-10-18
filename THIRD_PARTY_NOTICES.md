@@ -1,6 +1,6 @@
 # Third-party notices
 
-This project uses third-party software, libraries, threat feeds, and public research materials. The repository is licensed under the MIT License (see [LICENSE](../LICENSE)).
+This project uses third-party software, libraries, threat feeds, and public research materials. The repository is licensed under the MIT License (see [LICENSE](LICENSE)).
 
 ## Runtime dependencies
 
@@ -22,7 +22,7 @@ The project does not bundle these feeds by default. If a feed snapshot is added 
 
 ## Public research / documentation used during development
 
-The research and documentation sources used to build PreFlight are listed in [SOURCES.md](../SOURCES.md). Those materials remain the property of their original authors and publishers.
+The research and documentation sources used to build PreFlight are listed in [SOURCES.md](SOURCES.md). Those materials remain the property of their original authors and publishers.
 
 ## Project-generated materials
 

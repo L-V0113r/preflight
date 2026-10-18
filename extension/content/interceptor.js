@@ -6,10 +6,12 @@
  * worker to scan the target, and then either continues silently (safe) or
  * shows the PreFlight pop-up and lets you decide.
  *
- * Deliberately NOT intercepted (see readme/README.md "Limitations"):
- *  - links to the same host you're already on (fast, and the page was
- *    already checked when you arrived);
- *  - Ctrl/Cmd/Shift/Alt-clicks and middle-clicks (new tab/window shortcuts);
+ * Ctrl/Cmd-clicks and middle-clicks (new tab) and Shift-clicks (new window)
+ * are checked too, then opened the way the user asked.
+ *
+ * Not intercepted (see readme/README.md "Limitations"):
+ *  - links to the same host you're already on;
+ *  - Alt-clicks (download shortcut) and the right-click menu;
  *  - navigation done by the page's own scripts, typed URLs and bookmarks.
  */
 (() => {
@@ -21,7 +23,9 @@
   let busy = false;
   let bypassHref = null; // lets our own re-click of a download link through
 
-  window.addEventListener('click', onClick, true); // capture phase: run before the page
+  // Capture phase: run before the page's own handlers.
+  window.addEventListener('click', onClick, true);
+  window.addEventListener('auxclick', onClick, true); // middle button
 
   function findLink(event) {
     for (const node of event.composedPath()) {
@@ -32,10 +36,26 @@
     return null;
   }
 
-  function shouldScan(event, link) {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-      return null;
+  /**
+   * How the browser would have opened this click:
+   * 'same' (this tab), 'background' (new tab behind), 'foreground'
+   * (new tab in front), 'window' (new window), or null if not handled.
+   */
+  function openMode(event) {
+    if (event.altKey) return null;
+    const newTabKey = event.ctrlKey || event.metaKey;
+    if (event.type === 'auxclick') {
+      if (event.button !== 1) return null;
+      return event.shiftKey ? 'foreground' : 'background';
     }
+    if (event.button !== 0) return null;
+    if (newTabKey) return event.shiftKey ? 'foreground' : 'background';
+    if (event.shiftKey) return 'window';
+    return 'same';
+  }
+
+  function shouldScan(event, link) {
+    if (!openMode(event)) return null;
     let url;
     try {
       url = new URL(link.href, document.baseURI);
@@ -56,30 +76,35 @@
     if (!link) return;
     const url = shouldScan(event, link);
     if (!url) return;
+    const mode = openMode(event);
 
     // Stop the browser (and the page's own click handlers) from navigating.
     event.preventDefault();
     event.stopImmediatePropagation();
     if (busy) return;
-    checkThenNavigate(link, url);
+    checkThenNavigate(link, url, mode);
   }
 
   /** Carry out the navigation the user originally asked for. */
-  function navigate(link, url) {
+  function navigate(link, url, mode) {
     overlay.hide();
+    if (mode !== 'same') {
+      chrome.runtime.sendMessage({ type: 'preflight:open-tab', url: url.href, mode });
+      return;
+    }
     const baseTarget = document.querySelector('base[target]')?.getAttribute('target') || '';
     const target = (link.getAttribute('target') || baseTarget).toLowerCase();
     if (link.hasAttribute('download')) {
       bypassHref = url.href;
       link.click(); // keeps the browser's download behaviour
     } else if (target && !['_self', '_top', '_parent'].includes(target)) {
-      chrome.runtime.sendMessage({ type: 'preflight:open-tab', url: url.href });
+      chrome.runtime.sendMessage({ type: 'preflight:open-tab', url: url.href, mode: 'foreground' });
     } else {
       window.location.assign(url.href);
     }
   }
 
-  async function checkThenNavigate(link, url) {
+  async function checkThenNavigate(link, url, mode) {
     busy = true;
     let cancelled = false;
     overlay.showScanning(url.hostname, () => {
@@ -102,16 +127,16 @@
     if (cancelled) return;
 
     const goBack = () => overlay.hide();
-    const goAnyway = () => navigate(link, url);
+    const goAnyway = () => navigate(link, url, mode);
 
     if (!response || response.status === 'allowed') {
-      navigate(link, url);
+      navigate(link, url, mode);
       return;
     }
 
     if (response.status === 'error') {
       if (response.failMode === 'open') {
-        navigate(link, url);
+        navigate(link, url, mode);
       } else {
         overlay.showError(response.message, {
           onBack: goBack,
@@ -123,7 +148,7 @@
 
     const result = response.result;
     if (result.verdict === 'safe') {
-      navigate(link, url); // safe pages open with no interruption
+      navigate(link, url, mode); // safe pages open with no interruption
       return;
     }
 
@@ -145,7 +170,7 @@
       onProceed: async () => {
         // Remember the choice for this site until the browser is closed.
         await chrome.runtime.sendMessage({ type: 'preflight:allow-site', hostname: url.hostname });
-        navigate(link, url);
+        navigate(link, url, mode);
       },
     });
   }

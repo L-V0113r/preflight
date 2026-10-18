@@ -106,11 +106,17 @@ const handlers = {
     return { status: 'ok' };
   },
 
+  // mode: 'foreground' | 'background' (new tab) or 'window' (new window).
   async 'preflight:open-tab'(message, sender) {
     const url = new URL(message.url);
     if (!['http:', 'https:'].includes(url.protocol)) return { status: 'ignored' };
+    if (message.mode === 'window') {
+      await chrome.windows.create({ url: url.href });
+      return { status: 'ok' };
+    }
     await chrome.tabs.create({
       url: url.href,
+      active: message.mode !== 'background',
       openerTabId: sender.tab?.id,
       index: sender.tab ? sender.tab.index + 1 : undefined,
     });
