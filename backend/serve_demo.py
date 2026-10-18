@@ -68,9 +68,14 @@ def main() -> None:
     args = parser.parse_args()
 
     IndexHandler.index_bytes = build_index(args.sample_port)
-    index_server = ThreadingHTTPServer(("127.0.0.1", args.index_port), IndexHandler)
     samples_handler = functools.partial(SimpleHTTPRequestHandler, directory=str(SAMPLES_DIR))
-    sample_server = ThreadingHTTPServer(("127.0.0.1", args.sample_port), samples_handler)
+    try:
+        index_server = ThreadingHTTPServer(("127.0.0.1", args.index_port), IndexHandler)
+        sample_server = ThreadingHTTPServer(("127.0.0.1", args.sample_port), samples_handler)
+    except OSError as error:
+        raise SystemExit(f"\n The demo site could not start ({error}).\n"
+                         f" Ports {args.index_port} and {args.sample_port} must be free: close any other"
+                         " demo window first.") from None
 
     threading.Thread(target=sample_server.serve_forever, daemon=True).start()
     print(f"Demo index:   http://127.0.0.1:{args.index_port}/")

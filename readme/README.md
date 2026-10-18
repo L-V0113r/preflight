@@ -1,0 +1,193 @@
+# PreFlight — check a page before it opens
+
+PreFlight is a small AI that runs **on your own computer** next to your browser. When you click a link to another website, PreFlight downloads the page **without running any of it**, checks it for attacks on the visitor, and only then lets it open. If something looks wrong, a pop-up explains what it found **before** the page loads, and you decide.
+
+It is built for people who value privacy and would rather wait a moment than take a risk. The URLs you visit are never sent to any cloud service. The model, the rules and the threat lists all live on your machine.
+
+> **One-sentence pitch:** We help privacy-conscious people avoid phishing, scam and malware pages by checking every link on their own computer, with an explainable AI, before the page can load.
+
+---
+
+## What it catches
+
+| Attack on the visitor | How PreFlight spots it |
+|---|---|
+| **Phishing / fake login pages** | password forms that send to another site, look-alike domains (`paypa1.com`, Cyrillic look-alikes), brand names in someone else's link, a page claiming to be a brand it isn't hosted by, pressure language |
+| **"ClickFix" fake CAPTCHAs** | code that silently copies a PowerShell/mshta command to your clipboard, plus "press Windows + R, then Ctrl + V" instructions |
+| **Card skimmers (Magecart-style)** | checkout pages whose scripts read form fields and beam them to another site |
+| **Keyloggers** | scripts that record typing and send it off-site |
+| **Drive-by downloads / fake updates** | hidden cross-site frames, automatic redirects to program files, "your browser is out of date" + `.exe` |
+| **Browser-in-the-browser** | a fake sign-in "window" drawn inside the page with a fake address bar |
+| **Cryptojacking** | known browser-miner code, WebAssembly/worker mining patterns |
+| **Tech-support scams** | fake virus alerts with phone numbers, full-screen and endless-alert lock-ins |
+| **Notification spam bait** | "Click Allow to prove you're not a robot" + permission requests |
+| **Malvertising chains** | links that bounce through several unrelated sites |
+| **Known bad sites** | offline lookup in downloaded threat feeds (OpenPhish, optional URLhaus) |
+
+A machine-learning model scores every page as well, so pages that resemble these attacks without matching a rule exactly still raise a warning.
+
+## How it works
+
+```
+ you click a link
+        │
+        ▼
+ ┌───────────────────────┐   message   ┌────────────────────┐   HTTP + token   ┌──────────────────────────────┐
+ │ content script        │ ──────────▶ │ extension service  │ ───────────────▶ │ local scanner (Python)       │
+ │ (stops the navigation │             │ worker (holds the  │                  │ 127.0.0.1:8765               │
+ │  and shows "checking")│ ◀────────── │ secret token)      │ ◀─────────────── │                              │
+ └───────────────────────┘   verdict   └────────────────────┘    ScanResult    │ 1 safe fetch (no JS, no      │
+        │                                                                      │   cookies, SSRF-guarded)     │
+        ▼                                                                      │ 2 parse HTML, read scripts   │
+ safe   → page opens, no interruption                                          │ 3 rules for known attacks    │
+ unsure → pop-up explains why it couldn't confirm                              │ 4 offline threat-list lookup │
+ caution/danger → warning pop-up, "Go back" is the default                     │ 5 AI model + explanation     │
+                                                                               │ 6 combine → verdict          │
+                                                                               └──────────────────────────────┘
+```
+
+The verdict combines three kinds of evidence. **Rules** give precise, explainable answers for known attack classes. The **AI model** (a calibrated gradient-boosted tree ensemble over 74 engineered features) covers the grey areas. **Threat feeds** catch known-bad sites. The model's probabilities are corrected for how rare attacks are in real browsing, so honest-but-unusual pages aren't flagged. When the model is genuinely on the fence it answers **Unsure** rather than pretending a page is safe. In *Strict* mode it also answers Unsure for any page it couldn't read or doesn't recognise. Details are in [`ai_techniques/`](ai_techniques/).
+
+## How to run it
+
+You need **Python 3.10 or newer** and **Google Chrome** (or another Chromium browser: Edge, Brave). On Windows, tick *"Add python.exe to PATH"* when installing Python.
+
+### Windows: the easy way
+
+1. Double-click **`Start PreFlight.bat`** in the project folder. The first time, it sets everything up (about a minute): it creates `backend\.venv`, installs the libraries, trains the model and runs the self-tests. **Leave the window open** while you browse. Closing it stops PreFlight.
+2. In Chrome, open `chrome://extensions` and switch on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the `extension` folder.
+4. Hover over the PreFlight icon in the toolbar (pin it from the puzzle-piece menu). It should say **PreFlight is RUNNING**. You don't need to paste a token: the scanner writes it into the extension folder and the extension picks it up by itself.
+
+Now click any link to another site. Safe pages open after a short check. Risky ones show the PreFlight pop-up.
+
+**Demo pages:** close the normal scanner window first, then double-click **`Start PreFlight demo.bat`**. It starts the scanner in demo mode and opens the demo page in your browser.
+
+### Any system: from a terminal
+
+Run these from the project folder. On Windows, use `.venv\Scripts\python.exe` wherever you see `.venv/bin/python`.
+
+```bash
+cd backend
+python -m venv .venv                          # Windows: py -3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python train_model.py               # trains the model, about 30 seconds
+.venv/bin/python -m unittest                  # 64 self-tests, a few seconds
+.venv/bin/python update_threat_feeds.py       # optional: download threat feeds (repeat daily)
+.venv/bin/python run_server.py                # start the scanner; leave it running (Ctrl+C stops it)
+```
+
+Then load the extension in Chrome as in steps 2–4 above.
+
+### Try it safely with the demo pages
+
+Stop the normal scanner first (Ctrl+C), because both use the same port. Then open **two terminals** in the `backend` folder:
+
+```bash
+# Terminal 1: serves the inert sample pages
+.venv/bin/python serve_demo.py
+
+# Terminal 2: the scanner in demo mode, which may check pages on this computer
+.venv/bin/python run_server.py --allow-private-targets
+```
+
+Open <http://127.0.0.1:8000/> and click the links: 3 honest pages and 8 attack pages, plus two failure cases. One is an unreachable site (→ Unsure, or Safe in Balanced mode if the link looks clean) and one is a block-listed domain (→ Danger, even though the page can't be loaded). Ctrl-click or middle-click a link to check that new-tab clicks are scanned too. Every sample is synthetic and inert. Attacker domains use the reserved `.invalid` ending, so nothing can ever load, and commands only print a test message.
+
+### Use it from the terminal
+
+```bash
+.venv/bin/python scan_cli.py https://example.com
+.venv/bin/python scan_cli.py https://example.com --json
+.venv/bin/python scan_cli.py --file samples/malicious_clickfix_captcha.html --as-url https://verify.example/
+```
+
+### If it doesn't work
+
+| What you see | What to do |
+|---|---|
+| Icon hover says *NOT RUNNING* | Start the scanner (`Start PreFlight.bat` or `run_server.py`) and keep its window open. |
+| Icon hover says *NOT CONNECTED* | The extension has an old token. Open the PreFlight settings (click the icon), clear the token box, press **Save**, then **Test connection**. |
+| "Python was not found" | Install Python 3.10+ from python.org with *Add python.exe to PATH* ticked, then run the `.bat` again. |
+| Demo links open without a pop-up, or say the page couldn't be checked | Use demo mode (`--allow-private-targets`). The normal scanner refuses to check pages on your own computer. |
+| You changed the code | Reload the extension on `chrome://extensions` and restart the scanner. To redo the Windows setup, delete `backend\.venv\preflight_ready.txt`. |
+
+## Settings (extension options page)
+
+| Setting | Default | Meaning |
+|---|---|---|
+| How thorough | Full check | *Link only* never downloads the page: faster and more private, but much less accurate |
+| How cautious | Balanced | *Balanced* interrupts only when something looks wrong. *Strict* also asks about every page PreFlight couldn't read or doesn't recognise |
+| If the scanner isn't running | Ask me | or *Block the link*, or *Open without checking* |
+| Maximum wait | 20 s | after this the scan is abandoned and treated as "couldn't check" |
+
+## Privacy and safety design
+
+- **Local only.** The server listens on `127.0.0.1` only. The extension refuses any scanner address other than `127.0.0.1`.
+- **No code is run.** Pages are read as text. JavaScript is analysed statically, never executed.
+- **The scanner can't be abused by websites.** It requires a secret token, rejects web-page origins, checks the `Host` header (blocks DNS rebinding), and refuses to fetch private or local addresses (blocks SSRF), pinning each connection to the IP it checked.
+- **No cookies are sent** when fetching, so the site doesn't learn who you are, only that someone at your IP asked for the page.
+- **Quiet logs.** URLs are not logged unless you start the server with `--verbose`.
+- **Threat feeds are downloaded, not queried**, so your browsing isn't sent to a reputation service.
+- **You stay in control.** Every warning has an "open anyway" option. That choice is remembered only until the browser closes.
+
+## Limitations (please read)
+
+- **The model has only been tested on synthetic data.** It was trained and evaluated on labelled synthetic pages (see [`ai_techniques/06_synthetic_data_and_shortcuts.md`](ai_techniques/06_synthetic_data_and_shortcuts.md)). The synthetic evaluation is in [`../backend/reports/evaluation_report.md`](../backend/reports/evaluation_report.md). Real-world accuracy is **unmeasured** until you run `python evaluate.py --real-dir <folder>` on real labelled pages.
+- **The scanner downloads the page, and that has side effects.** The site sees one extra request from your IP. One-time links (password resets, "magic" login links, unsubscribe links) can be **used up** by the scan, the same problem email link-scanners cause. Use *Link only* mode, or "open anyway", for those.
+- **Cloaking.** Some attack kits show harmless content to anything that isn't a real browser. PreFlight looks like a normal Chrome request but doesn't run JavaScript, so it can be shown a decoy.
+- **Error and bot-check pages aren't analysed.** If a site answers with an error or a bot-protection check (HTTP 403, 429, 503…), that page isn't the site, so only the link is judged. In *Balanced* mode a page like that opens without a pop-up if nothing about the link looks off. Phishing kits that refuse automated visitors could therefore slip through. Use *Strict* if you'd rather be asked.
+- **Static analysis can be evaded** by heavy obfuscation or code fetched at run time. Obfuscation itself is treated as a warning sign.
+- **Not everything is intercepted.** Normal clicks, Ctrl/Cmd-clicks, middle-clicks and Shift-clicks are checked. Typed URLs, bookmarks, the right-click "Open link in new tab" menu, Alt-clicks (download), links to the same host, and navigation started by a page's own scripts are not scanned in this version.
+- **Look-alike detection needs a list.** It only knows the brands in `backend/threat_data/protected_domains.txt`. Add the banks and services you use.
+- **Speed.** Analysis takes tens of milliseconds. Downloading the page adds normal network time, typically 0.3–3 s.
+- **Honest sites can trip rules.** Company single sign-on and identity providers not in the allow-list, sites with many hidden tracking frames, and old sites that use `eval` can all do this. That's why every warning explains itself and can be overridden.
+
+## Project structure
+
+```
+preflight/
+├── README.md                    → pointer to this folder
+├── readme/                      → all documentation (you are here)
+├── extension/                   Chrome extension (Manifest V3)
+│   ├── manifest.json
+│   ├── background.js            service worker: talks to the scanner
+│   ├── lib/                     settings.js, api_client.js, session_state.js (ES modules)
+│   ├── content/                 overlay.js (pop-up UI), interceptor.js (catches clicks)
+│   └── options/                 settings page
+└── backend/                     Python scanner
+    ├── run_server.py            start the local API
+    ├── scan_cli.py              scan from the terminal / collect pages
+    ├── train_model.py           train + save the model and model card
+    ├── evaluate.py              synthetic study, or --real-dir for real pages
+    ├── update_threat_feeds.py   download OpenPhish / URLhaus lists
+    ├── serve_demo.py            local demo site
+    ├── preflight/               the package (each folder is a small library)
+    │   ├── schema.py config.py context.py scoring.py scanner.py server.py auth.py cache.py
+    │   ├── net/                 address_guard.py (SSRF), safe_fetcher.py
+    │   ├── parsing/             url_tools.py, html_parser.py
+    │   ├── features/            script_analysis.py, text_analysis.py, url/page features, vectoriser.py
+    │   ├── detectors/           url, transport, form, script, content rules + threat_intel.py
+    │   ├── ml/                  model.py, trainer.py, dataset.py, evaluation.py, report.py
+    │   └── data/                synthetic.py (labelled generator), loaders.py (real data)
+    ├── samples/                 11 inert labelled sample pages
+    ├── threat_data/             protected brands, your block lists, downloaded feeds
+    ├── models/                  trained model + MODEL_CARD.md
+    ├── reports/                 evaluation_report.md / .json
+    └── tests/                   unittest suite (unit + end-to-end)
+```
+
+## For the SotonShip judges
+
+- **User.** Privacy-conscious individuals who would rather wait a second than be phished: people who bank and shop online, and people who've been scammed before.
+- **Problem evidence.** The attack classes come from public threat research: MITRE ATT&CK T1189 (drive-by compromise), the OWASP client-side risks project, ClickFix reporting, and browser-in-the-browser research. See [`SOURCES.md`](../SOURCES.md).
+- **AI at the core.** The model is compared against a keyword baseline and against the rules alone (see the evaluation report). It also explains itself (occlusion attribution) and knows when it's out of its depth (out-of-distribution check).
+- **Responsibility.** Local-only processing, an SSRF-safe fetcher, override always available, an "Unsure" verdict instead of false reassurance, model card, honest failure demo.
+- **Business model to test.** The ideas below are hypotheses, not validated.
+  - A free personal version, plus a paid tier for families or small offices with managed protected-brand lists.
+  - Licensing to banks and wallet providers, who could ship it to customers to cut reimbursed scam losses. Their protected list would be their own domains.
+  - Running cost is almost nothing per user, because all inference runs on the user's CPU. There are no per-request AI fees.
+- **Second market.** Swap in that country's banks in `protected_domains.txt`. Add its public suffixes to `url_tools.py`. Add local scam phrases to `text_analysis.py`.
+
+## AI use, prior work and help (hackathon rule)
+
+The whole codebase and these documents were generated by **Claude (Anthropic), an AI assistant**, on 17–18 October 2026, during the event. The work followed the team's specification. Nothing existed before the event, and no outside help was used. Full disclosure is in [`DEVELOPMENT.md`](../DEVELOPMENT.md). All data sources, with dates and licences, are listed in [`SOURCES.md`](../SOURCES.md).

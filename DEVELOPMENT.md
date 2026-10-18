@@ -8,25 +8,7 @@
 
 ## Quick start for a judge
 
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python train_model.py
-python -m unittest
-python serve_demo.py
-```
-
-In a second terminal:
-
-```bash
-cd backend
-source .venv/bin/activate
-python run_server.py --allow-private-targets
-```
-
-Then open http://127.0.0.1:8000/ in a browser and click the demo links.
+On Windows, double-click `Start PreFlight demo.bat`, then load the `extension` folder in Chrome (`chrome://extensions` → Developer mode → Load unpacked). On other systems, or to run each step by hand, follow [How to run it](README.md#how-to-run-it) in the README.
 
 ## The brief we started from
 

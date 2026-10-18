@@ -13,6 +13,7 @@ also printed in case you need to paste it into the extension settings.
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import logging
 from pathlib import Path
@@ -27,6 +28,20 @@ from preflight.server import PreFlightServer
 # lets the extension pick it up by itself, so nobody has to copy and paste it.
 # The file is private to the extension (it is not web-accessible).
 EXTENSION_DIR = Path(__file__).resolve().parent.parent / "extension"
+
+
+def port_in_use_message(port: int, error: OSError) -> str:
+    """Readable start-up error; port-in-use is the usual cause."""
+    if is_port_in_use(error):
+        return (f"\n PreFlight could not start: port {port} is already in use.\n"
+                " PreFlight is probably already running in another window.\n"
+                " Close that window (or press Ctrl+C in it), then start this one again.")
+    return f"\n PreFlight could not start: {error}"
+
+
+def is_port_in_use(error: OSError) -> bool:
+    # errno.EADDRINUSE on Linux/macOS; WSAEADDRINUSE (10048) on Windows.
+    return error.errno == errno.EADDRINUSE or getattr(error, "winerror", None) == 10048
 
 
 def share_token_with_extension(token: str, port: int) -> None:
@@ -61,7 +76,10 @@ def main() -> None:
     share_token_with_extension(token, config.server.port)
 
     scanner = Scanner.from_config(config)
-    server = PreFlightServer(scanner, token)
+    try:
+        server = PreFlightServer(scanner, token)
+    except OSError as error:
+        raise SystemExit(port_in_use_message(config.server.port, error)) from None
     provenance = scanner.provenance()
 
     print("=" * 64)
@@ -71,7 +89,7 @@ def main() -> None:
     age = provenance["threat_list_age_days"]
     print(f" Threat list: {provenance['threat_list_entries']} entries, "
           + ("never updated" if age is None else f"{age} days old"))
-    print(f" Extension token (paste into the extension options once):\n   {token}")
+    print(f" Extension token (the extension reads it by itself; paste it into\n settings only if the icon says NOT CONNECTED):\n   {token}")
     if args.allow_private_targets:
         print(" WARNING: private/local addresses can be scanned (demo mode).")
     print(" Press Ctrl+C to stop.")
